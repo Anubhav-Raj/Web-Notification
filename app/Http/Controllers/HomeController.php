@@ -46,50 +46,63 @@ class HomeController extends Controller
      *
      * @return response()
      */
+    //  print_r(response);
     public function sendNotification(Request $request)
-    {
-
-    $userID = $request->user_id; 
+{
+    $userID = $request->user_id;
     $usersQuery = User::where('is_logged_in', true)->whereNotNull('device_token')->where('id', $userID);
 
-        if ($usersQuery->count() === 0) {
-            // No user found with the specified conditions
-            if ($usersQuery->where('id', $userID)->count() === 0) {
-                return response()->json(['error' => 'User not found.'], 404);
-            } else {
-                return response()->json(['error' => 'User is not logged in.'], 403);
-            }
+    if ($usersQuery->count() === 0) {
+        // No user found with the specified conditions
+        if ($usersQuery->where('id', $userID)->count() === 0) {
+            return response()->json(['error' => 'User not found.'], 404);
+        } else {
+            return response()->json(['error' => 'User is not logged in.'], 403);
         }
+    }
 
     $firebaseToken = $usersQuery->pluck('device_token')->all();
-   $SERVER_API_KEY = 'AAAA-hI1nkM:APA91bHHKFx9aysiHt85D8OEZFcN-MEfhW0ccR9j1RFedGmYkMCPvwN76MzosMuWeSCMl5Vlj9nnXYVhhx3mvJsY2litOXi8y-8QitEbkrjXWBEHsV9EciU83_jfGE1Bjp4t_JA0pNx6';
-        $data = [
-            "registration_ids" => $firebaseToken,
-            "notification" => [
-                "title" => $request->title,
-                "body" => $request->body,
-                "content_available" => true,
-                "priority" => "high",
-            ]
-        ];
-        $dataString = json_encode($data);
+    $SERVER_API_KEY = 'AAAA-hI1nkM:APA91bHHKFx9aysiHt85D8OEZFcN-MEfhW0ccR9j1RFedGmYkMCPvwN76MzosMuWeSCMl5Vlj9nnXYVhhx3mvJsY2litOXi8y-8QitEbkrjXWBEHsV9EciU83_jfGE1Bjp4t_JA0pNx6';
 
-        $headers = [
-            'Authorization: key=' . $SERVER_API_KEY,
-            'Content-Type: application/json',
-        ];
+    $data = [
+        "registration_ids" => $firebaseToken,
+        "notification" => [
+            "title" => $request->title,
+            "body" => $request->body,
+            "content_available" => true,
+            "priority" => "high",
+        ]
+    ];
 
-        $ch = curl_init();
+    $dataString = json_encode($data);
 
-        curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $dataString);
+    $headers = [
+        'Authorization: key=' . $SERVER_API_KEY,
+        'Content-Type: application/json',
+    ];
 
-        $response = curl_exec($ch);
+    $ch = curl_init();
 
-        dd($response);
+    curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $dataString);
+
+    $response = curl_exec($ch);
+
+    // Check if there was an error in the cURL request
+    if (curl_errno($ch)) {
+        return response()->json(['error' => 'cURL Error: ' . curl_error($ch)], 500);
     }
+
+    curl_close($ch);
+
+    // Decode the response
+    $responseData = json_decode($response, true);
+
+    return response()->json(['response' => $responseData], 200);
+}
+
 }
